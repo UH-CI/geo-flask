@@ -3,6 +3,7 @@ from flask import request, jsonify, abort
 import sqlite3
 import sys
 import sample_retrieval
+import db_connect
 
 dbf = "E:/ncbigeo/GEOmetadb.sqlite"
 
@@ -70,6 +71,16 @@ def api_filter_values():
 @app.route("/api/v1/values", methods=["POST"])
 def api_create_values():
     print(request.json)
+
+    engine = db_connect.get_db_engine()
+
+    with engine.connect() as con:
+        #PLACEHOLDER, CONSTRUCT INSERT FROM REQUEST
+        print()
+
+
+    db_connect.cleanup_db_engine()
+
     #abort(400)
     return flask.make_response({"value": "test"}, 201)
 
