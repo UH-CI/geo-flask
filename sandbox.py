@@ -1,16 +1,20 @@
-from sshtunnel import SSHTunnelForwarder
+import db_connect
 
 import sqlalchemy
+import json
+import atexit
+
+engine = db_connect.get_db_engine()
+
+q = engine.execute("SELECT * FROM gene_gpl_ref")
+print(q.fetchall())
+
+db_connect.cleanup_db_engine()
+
+def test():
+    print("test")
+
+atexit.register(test)
 
 
 
-# with SSHTunnelForwarder(
-#     ("172.31.100.10", 22),
-#     ssh_username="ngeo",
-#     ssh_password="g3osp@m!"
-# ) as tunnel:
-SQLALCHEMY_DATABASE_URI = 'mysql+pymysql://ngeo_grant:mJ1H.aO]u*A)@tOBcU@mariadb.db.ci.its.hawaii.edu/extern_ncbi_geo'
-
-# Test if it works
-engine = sqlalchemy.create_engine(SQLALCHEMY_DATABASE_URI, echo=True)
-print(engine.table_names())
