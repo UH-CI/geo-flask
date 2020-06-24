@@ -12,4 +12,4 @@ ENV threads=3
 # set the FLASK_APP var to point to the api.py module in the default location
 ENV FLASK_APP api.py
 
-CMD python api.py
+CMD gunicorn --bind 0.0.0.0:5000 wsgi:app

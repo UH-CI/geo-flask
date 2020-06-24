@@ -203,4 +203,6 @@ def construct_query_from_params(table, valid_fields, query_parameters):
 
 #can change number of processes, but need to be aware of potential affects on r stuff
 #also, gunicorn can handle this stuff
-app.run(debug=True, threaded = True, processes = 1, host='0.0.0.0')
+#app.run(debug=True, threaded = True, processes = 1, host='0.0.0.0')
+if __name__ == "__main__":
+	app.run(host='0.0.0.0')
