@@ -3,11 +3,28 @@ from flask import request, jsonify, abort
 import sqlite3
 import sys
 import sample_retrieval
+import db_connect
+import atexit
+import signal
+import sqlalchemy
+from sqlalchemy import text
+from sqlalchemy import exc
 
 dbf = "E:/ncbigeo/GEOmetadb.sqlite"
 
 app = flask.Flask(__name__)
 app.config["DEBUG"] = True
+
+engine = db_connect.get_db_engine()
+
+def prep_gene_gpl_ref_insert():
+    return text("""
+        INSERT INTO gene_gpl_ref (gene_symbol, gene_synonyms, gene_description, gpl, ref_id)
+        VALUES (:gene_symbol, :gene_synonyms, :gene_description, :gpl, :ref_id);
+    """)
+
+gene_gpl_ref_insert = prep_gene_gpl_ref_insert()
+
 
 def dict_factory(cursor, row):
     d = {}
@@ -19,6 +36,11 @@ def dict_factory(cursor, row):
 @app.errorhandler(404)
 def page_not_found(e):
     return flask.make_response("<h1>404</h1><p>The resource could not be found.</p>", 404)
+
+
+@app.errorhandler(400)
+def bad_req(e):
+    return flask.make_response({"message": e.description}, 400)
 
 
 
@@ -67,34 +89,85 @@ def api_filter_values():
     return ret
 
 
-@app.route("/api/v1/values", methods=["POST"])
+# gene_symbol varchar(50) NOT NULL,
+# gene_synonyms varchar(255),
+# gene_description varchar(21000),
+# gpl varchar(10) NOT NULL,
+# ref_id varchar(255) NOT NULL,
+@app.route("/api/v1/gene_gpl_ref", methods=["POST"])
 def api_create_values():
-    print(request.json)
+    # global engine
+    # global gene_gpl_ref_insert
+
+    #reconstruct request to ensure required fields
+    formatted_req = {
+        "gene_symbol": request.json.get("gene_symbol"),
+        "gene_synonyms": request.json.get("gene_synonyms"),
+        "gene_description": request.json.get("gene_description"),
+        "gpl": request.json.get("gpl"),
+        "ref_id": request.json.get("ref_id")
+    }
+
+    print(formatted_req)
+    
+    #make sure not null fields are provided otherwise abort with 400 (bad requset)
+    if formatted_req["gene_symbol"] is None or formatted_req["gpl"] is None or formatted_req["ref_id"] is None:
+        abort(400, "Must provide gene_symbol, gpl, and ref_id fields.")
+
+    try:
+        print(engine.table_names())
+        with engine.begin() as con:
+            con.execute(gene_gpl_ref_insert, **formatted_req)
+    except exc.IntegrityError as e:
+        abort(400, "A conflict has occured with the provided values. Must have a unique gpl, gene_symbol combination.")
+    except Exception as e:
+        print(e, file = sys.stderr)
+        abort(500)
+
+
+    
+
     #abort(400)
-    return flask.make_response({"value": "test"}, 201)
+    return flask.make_response(formatted_req, 201)
 
 
-def create_sql_insert(table, fields, json):
-    sql = "INSERT INTO %s (" % table
+#ask sean best way to implement this
+@app.route("/api/v1/gene_gpl_ref/delete", methods=["POST"])
+def api_delete_values():
+    abort(501)
 
-    values = []
 
-    for field in fields:
-        value = json.get(field)
-        if value is not None:
-            sql += "%s, " % field
-            values.append(value)
+# def prepare_sql_insert(table, fields, json):
+#     sql = "INSERT INTO %s (" % table
 
-    sql = sql[:-2]
-    sql += ") VALUES ("
+#     params = []
 
-    for value in values:
-        sql += "%s, " % value
+#     formatted_req = {}
 
-    sql = sql[:-2]
-    sql += ");"
+#     for field in fields:
+#         value = json.get(field)
+#         if value is not None:
+#             sql += "%s, " % field
+#             param = ":%s" % field
+#             params.append(param)
+#         formatted_req[field] = value
 
-    return sql
+#     sql = sql[:-2]
+#     sql += ") VALUES ("
+
+#     for param in params:
+#         sql += "%s, " % param
+
+#     sql = sql[:-2]
+#     sql += ");"
+
+#     q = (text(sql), formatted_req)
+
+#     return q
+
+
+
+
 
 
 
@@ -147,7 +220,6 @@ def construct_query_from_params(table, valid_fields, query_parameters):
     query_filters = []
     #execute parameters should deal with sanitization
     parameters = []
-
     for field in valid_fields:
         values = query_parameters.get(field)
         if values is not None:
@@ -198,8 +270,15 @@ def construct_query_from_params(table, valid_fields, query_parameters):
     return (query, parameters)
 
 
+def cleanup():
+    db_connect.cleanup_db_engine()
 
+def cleanup_sig(sig, frame):
+    cleanup()
+    exit(0)
 
+atexit.register(cleanup)
+signal.signal(signal.SIGINT, cleanup_sig)
 
 #can change number of processes, but need to be aware of potential affects on r stuff
 #also, gunicorn can handle this stuff
