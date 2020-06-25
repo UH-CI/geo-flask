@@ -9,6 +9,7 @@ import signal
 import sqlalchemy
 from sqlalchemy import text
 from sqlalchemy import exc
+import json
 
 config_file = "config.json"
 
@@ -19,7 +20,7 @@ with open(config_file) as f:
 dbf = config["meta_db_file"]
 
 app = flask.Flask(__name__)
-app.config["DEBUG"] = True
+# app.config["DEBUG"] = config["debug"]
 
 engine = db_connect.get_db_engine()
 
@@ -286,6 +287,7 @@ def cleanup_sig(sig, frame):
 atexit.register(cleanup)
 signal.signal(signal.SIGINT, cleanup_sig)
 
-#also, gunicorn can handle this stuff
-#debug breaks with db connection stuff, reload doesn't work properly
-app.run(debug = False, threaded = True, processes = 1, host = "0.0.0.0")
+#should only run if file run directly, not through gunicorn
+if __name__ == "__main__":
+    #debug breaks with db connection stuff, reload doesn't work properly
+    app.run(debug = False, threaded = True, processes = 1, host = "0.0.0.0")
