@@ -18,7 +18,7 @@ def get_db_engine():
 
     config = None
     with open(config_file) as f:
-        config = json.load(f)
+        config = json.load(f)["extern_db_config"]
 
     
     if config["tunnel"]["use_tunnel"]:    

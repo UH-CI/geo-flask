@@ -1,8 +1,8 @@
-# geo-flask
+stop current:
+docker stop containerID
 
-API to interact with NCBI GEO and analytic database
-
-
+code in:
+/var/www/geo-flask
 
 ## Build Contianer
 

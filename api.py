@@ -10,7 +10,13 @@ import sqlalchemy
 from sqlalchemy import text
 from sqlalchemy import exc
 
-dbf = "E:/ncbigeo/GEOmetadb.sqlite"
+config_file = "config.json"
+
+config = None
+with open(config_file) as f:
+    config = json.load(f)
+    
+dbf = config["meta_db_file"]
 
 app = flask.Flask(__name__)
 app.config["DEBUG"] = True
@@ -280,7 +286,6 @@ def cleanup_sig(sig, frame):
 atexit.register(cleanup)
 signal.signal(signal.SIGINT, cleanup_sig)
 
-#can change number of processes, but need to be aware of potential affects on r stuff
 #also, gunicorn can handle this stuff
 #debug breaks with db connection stuff, reload doesn't work properly
 app.run(debug = False, threaded = True, processes = 1, host = "0.0.0.0")
