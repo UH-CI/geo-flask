@@ -108,14 +108,12 @@ def api_create_values():
 
     #reconstruct request to ensure required fields
     formatted_req = {
-        "gene_symbol": request.json.get("gene_symbol"),
-        "gene_synonyms": request.json.get("gene_synonyms"),
-        "gene_description": request.json.get("gene_description"),
-        "gpl": request.json.get("gpl"),
-        "ref_id": request.json.get("ref_id")
+        "gene_symbol": request.get_json(force=True).get("gene_symbol"),
+        "gene_synonyms": request.get_json(force=True).get("gene_synonyms"),
+        "gene_description": request.get_json(force=True).get("gene_description"),
+        "gpl": request.get_json(force=True).get("gpl"),
+        "ref_id": request.get_json(force=True).get("ref_id")
     }
-
-    print(formatted_req)
     
     #make sure not null fields are provided otherwise abort with 400 (bad requset)
     if formatted_req["gene_symbol"] is None or formatted_req["gpl"] is None or formatted_req["ref_id"] is None:
