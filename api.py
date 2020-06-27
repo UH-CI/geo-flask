@@ -292,8 +292,7 @@ if __name__ == "__main__":
     app.logger.setLevel(logging.DEBUG)
     #debug breaks with db connection stuff, reload doesn't work properly
     app.run(debug = False, threaded = True, processes = 1, host = "0.0.0.0")
-
-if __name__ != "__main__":
+else:
     gunicorn_logger = logging.getLogger('gunicorn.error')
     app.logger.handlers = gunicorn_logger.handlers
     app.logger.setLevel(gunicorn_logger.level)
