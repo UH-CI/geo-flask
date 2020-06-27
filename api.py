@@ -10,6 +10,7 @@ import sqlalchemy
 from sqlalchemy import text
 from sqlalchemy import exc
 import json
+import logging
 
 config_file = "config.json"
 
@@ -103,7 +104,8 @@ def api_filter_values():
 # ref_id varchar(255) NOT NULL,
 @app.route("/api/v1/gene_gpl_ref", methods=["POST"])
 def api_create_values():
-    print("test", flush = True)
+    app.logger.info("test")
+    app.logger.error("test_e")
     # global engine
     # global gene_gpl_ref_insert
 
@@ -287,5 +289,11 @@ signal.signal(signal.SIGINT, cleanup_sig)
 
 #should only run if file run directly, not through gunicorn
 if __name__ == "__main__":
+    app.logger.setLevel(logging.DEBUG)
     #debug breaks with db connection stuff, reload doesn't work properly
     app.run(debug = False, threaded = True, processes = 1, host = "0.0.0.0")
+
+if __name__ != "__main__":
+    gunicorn_logger = logging.getLogger('gunicorn.error')
+    app.logger.handlers = gunicorn_logger.handlers
+    app.logger.setLevel(gunicorn_logger.level)
