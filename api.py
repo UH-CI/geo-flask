@@ -109,14 +109,18 @@ def api_create_values():
     # global engine
     # global gene_gpl_ref_insert
 
-    #reconstruct request to ensure required fields
-    formatted_req = {
-        "gene_symbol": request.get_json(force=True).get("gene_symbol"),
-        "gene_synonyms": request.get_json(force=True).get("gene_synonyms"),
-        "gene_description": request.get_json(force=True).get("gene_description"),
-        "gpl": request.get_json(force=True).get("gpl"),
-        "ref_id": request.get_json(force=True).get("ref_id")
-    }
+    try:
+        #reconstruct request to ensure required fields
+        formatted_req = {
+            "gene_symbol": request.get_json(force=True).get("gene_symbol"),
+            "gene_synonyms": request.get_json(force=True).get("gene_synonyms"),
+            "gene_description": request.get_json(force=True).get("gene_description"),
+            "gpl": request.get_json(force=True).get("gpl"),
+            "ref_id": request.get_json(force=True).get("ref_id")
+        }
+    except Exception as e:
+        app.logger.error(e)
+        abort(500)
     
     #make sure not null fields are provided otherwise abort with 400 (bad requset)
     if formatted_req["gene_symbol"] is None or formatted_req["gpl"] is None or formatted_req["ref_id"] is None:
@@ -128,7 +132,7 @@ def api_create_values():
     except exc.IntegrityError as e:
         abort(400, "A conflict has occured with the provided values. Must have a unique gpl, gene_symbol combination.")
     except Exception as e:
-        print(e, file = sys.stderr)
+        app.logger.error(e)
         abort(500)
 
 

@@ -35,22 +35,22 @@ def get_db_engine():
 
         tunnel.start()
 
-        #create and populate sql configuration from config file
-        sql_config = {}
-        sql_config["lang"] = config["lang"]
-        sql_config["connector"] = config["connector"]
-        sql_config["password"] = config["password"]
-        sql_config["db_name"] = config["db_name"]
-        sql_config["user"] = config["user"]
-        sql_config["port"] = config["port"] if tunnel is None else tunnel.local_bind_port
-        sql_config["address"] = config["address"] if tunnel is None else tunnel.local_bind_host
+    #create and populate sql configuration from config file
+    sql_config = {}
+    sql_config["lang"] = config["lang"]
+    sql_config["connector"] = config["connector"]
+    sql_config["password"] = config["password"]
+    sql_config["db_name"] = config["db_name"]
+    sql_config["user"] = config["user"]
+    sql_config["port"] = config["port"] if tunnel is None else tunnel.local_bind_port
+    sql_config["address"] = config["address"] if tunnel is None else tunnel.local_bind_host
 
-        SQLALCHEMY_DATABASE_URI = '%s+%s://%s:%s@%s:%s/%s' % (sql_config["lang"], sql_config["connector"], sql_config["user"], sql_config["password"], sql_config["address"], sql_config["port"], sql_config["db_name"])
+    SQLALCHEMY_DATABASE_URI = '%s+%s://%s:%s@%s:%s/%s' % (sql_config["lang"], sql_config["connector"], sql_config["user"], sql_config["password"], sql_config["address"], sql_config["port"], sql_config["db_name"])
 
-        #create engine from URI
-        engine = sqlalchemy.create_engine(SQLALCHEMY_DATABASE_URI)
+    #create engine from URI
+    engine = sqlalchemy.create_engine(SQLALCHEMY_DATABASE_URI)
 
-        return engine
+    return engine
 
 
 def cleanup_db_engine():
