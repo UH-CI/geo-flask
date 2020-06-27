@@ -104,8 +104,6 @@ def api_filter_values():
 # ref_id varchar(255) NOT NULL,
 @app.route("/api/v1/gene_gpl_ref", methods=["POST"])
 def api_create_values():
-    app.logger.info("test")
-    app.logger.error("test_e")
     # global engine
     # global gene_gpl_ref_insert
 
