@@ -103,6 +103,7 @@ def api_filter_values():
 # ref_id varchar(255) NOT NULL,
 @app.route("/api/v1/gene_gpl_ref", methods=["POST"])
 def api_create_values():
+    print("test", flush = True)
     # global engine
     # global gene_gpl_ref_insert
 
@@ -120,7 +121,6 @@ def api_create_values():
         abort(400, "Must provide gene_symbol, gpl, and ref_id fields.")
 
     try:
-        print(engine.table_names())
         with engine.begin() as con:
             con.execute(gene_gpl_ref_insert, **formatted_req)
     except exc.IntegrityError as e:
