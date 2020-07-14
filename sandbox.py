@@ -2,19 +2,24 @@ import db_connect
 
 import sqlalchemy
 import json
-import atexit
 
 engine = db_connect.get_db_engine()
 
-q = engine.execute("SELECT * FROM gene_gpl_ref")
-print(q.fetchall())
+try:
+    q = (
+            sqlalchemy.text("SELECT * FROM gene_gpl_ref WHERE gene_symbol = 'AL033328'"),
+            {"gene": "AL033328"}
+        )
 
-db_connect.cleanup_db_engine()
-
-def test():
-    print("test")
-
-atexit.register(test)
+    print(q)
+    r = None
+    with engine.begin() as con:
+        r = con.execute(q[0])
+    print(r.fetchone())
+    db_connect.cleanup_db_engine()
+except Exception as e:
+    print(e)
+    db_connect.cleanup_db_engine()
 
 
 

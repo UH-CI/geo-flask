@@ -13,13 +13,15 @@ cache = "./cache/"
 
 
 def get_value_from_sample_by_id(gsm, id_ref):
-
-    gsm = GEOparse.get_GEO(geo = gsm, destdir = cache)  
+    try:
+        gsm = GEOparse.get_GEO(geo = gsm, destdir = cache, silent=True)
+    except:
+        return [] 
 
     data = gsm.table
-
     
-    values = data.loc[data["ID_REF"] == id_ref].to_dict("records")[0]
+    values = data.loc[data["ID_REF"] == id_ref].to_dict("records")
+    print(values)
 
     return values
 
@@ -29,7 +31,7 @@ def get_value_from_sample_by_ids(gsm, id_refs):
 
     gsm = GEOparse.get_GEO(geo = gsm, destdir = cache)
 
-    print(gsm.table["ID_REF"])
+    #print(gsm.table["ID_REF"])
 
     data = gsm.table
 
@@ -44,8 +46,7 @@ def get_value_from_sample_by_ids(gsm, id_refs):
 
 
 def simplified_list_factory(cursor, row):
-    l = []
-    print(row)
+    #l = []
     return row[0]
 
 def get_samples_from_platform(gpl):

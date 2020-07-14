@@ -69,41 +69,135 @@ def bad_req(e):
 # }
 @app.route("/api/v1/values", methods=["GET"])
 def api_filter_values():
-    query_parameters = request.args
-    gene_type = query_parameters.get("type")
+    try:
+        query_parameters = request.args
+        gene_symbol = query_parameters.get("symbol")
 
-    #connection to gene_type db and query on gene type (get gpls and ids)
-    #should also check alternative gene names if nothing returned
-    #allow gene description query? Probably would want "LIKE" query
+        #what can be searched on?
+        #gpl for reversing from disease, gene symbol (also gene synonyms)
+        #note gene synonym query must have wildcard at start so no index, so check main symbol first (always consistent since from same record), then check like first item in list (no initial wildcard), then use initial wildcard as last resort
+        #need to index symbol, synonyms, and gpl
 
-    ret = {
-        "gene_name": gene_type,
-        "gene_name_alt": [],
-        "gene_description": "temp",
-        "platforms": {}
-    }
+        #connection to gene_type db and query on gene type (get gpls and ids)
+        #should also check alternative gene names if nothing returned
+        #allow gene description query? Probably would want "LIKE" query
 
-    gpl_id = {
+        #remember to change table collation to case insensitive
 
-    }
-    for gpl in gpl_id:
-        ref_id = gpl_id[gpl]
-        gsms = sample_retrieval.get_samples_from_platform(gpl)
-        ret["platforms"][gpl] = {}
-        for gsm in gsms:
-            values = sample_retrieval.get_value_from_sample_by_id(gsm, ref_id)
-            ret["platforms"][gpl][gsm] = values
+        #queries tiered by speed
+        gene_symbol_queries = [
+            (
+                text("SELECT * FROM gene_gpl_ref WHERE gene_symbol = :gene;"),
+                {"gene": gene_symbol}
+            ),
+            (
+                text("SELECT * FROM gene_gpl_ref WHERE gene_synonyms LIKE :gene;"),
+                {"gene": "%s%%" % gene_symbol}
+            ),
+            #last resort, wildcard at start of pattern
+            #can just use the find in set operator since can't use the index
+            (
+                text("SELECT * FROM gene_gpl_ref WHERE FIND_IN_SET(:gene, gene_synonyms);"),
+                {"gene": gene_symbol}
+            )
+        ]
 
-    return ret
+        res = None
+        row = None
+        with engine.begin() as con:  
+            for query in gene_symbol_queries:
+                #return value should be similar to cursor results
+                res = con.execute(query[0], **query[1])
+                #fetch first result to check if anything returned
+                row = res.fetchone()
+                #got a result, all entries using the same gene should be consistent so good to go
+                if row is not None:
+                    break
 
+        if row is None:
+            return jsonify({})
+
+        #row order gene_symbol, gene_synonyms, gene_description, gpl, ref_id
+
+        #gene info same for everything, would be better to have gene info table with gene_symbol as a foreign key
+
+        ret = {
+            "gene_symbol": row[0],
+            "gene_synonyms": row[1],
+            "gene_description": row[2],
+            "platforms": {}
+        }
+
+
+        count = 0
+        while row is not None:
+            print(row)
+            count += 1
+            row = res.fetchone()
+            continue
+            gpl = row[3]
+            ref_id = row[4]
+
+            gsms = sample_retrieval.get_samples_from_platform(gpl)
+            print(gsms)
+            ret["platforms"][gpl] = {}
+            for gsm in gsms:
+                values = sample_retrieval.get_value_from_sample_by_id(gsm, ref_id)
+                ret["platforms"][gpl][gsm] = values
+            
+            row = res.fetchone()
+
+        print(count)
+
+        return jsonify(ret)
+    except Exception as e:
+        app.logger.error(e)
+        abort(500)
+
+
+
+
+
+#finish this
+@app.route("/api/v1/gene_info", methods = ["POST"])
+def api_create_gene_info():
+    try:
+        #reconstruct request to ensure required fields
+        formatted_req = {
+            "gene_symbol": request.get_json(force=True).get("gene_symbol"),
+            "gene_synonyms": request.get_json(force=True).get("gene_synonyms"),
+            "gene_description": request.get_json(force=True).get("gene_description"),
+            "gpl": request.get_json(force=True).get("gpl"),
+            "ref_id": request.get_json(force=True).get("ref_id")
+        }
+    except Exception as e:
+        app.logger.error(e)
+        abort(500)
+    
+    #make sure not null fields are provided otherwise abort with 400 (bad requset)
+    if formatted_req["gene_symbol"] is None or formatted_req["gpl"] is None or formatted_req["ref_id"] is None:
+        abort(400, "Must provide gene_symbol, gpl, and ref_id fields.")
+
+    try:
+        with engine.begin() as con:
+            con.execute(gene_gpl_ref_insert, **formatted_req)
+    except exc.IntegrityError as e:
+        abort(400, "A conflict has occured with the provided values. Must have a unique gpl, ref_id combination.")
+    except Exception as e:
+        app.logger.error(e)
+        abort(500)
+    
+
+    #abort(400)
+    return flask.make_response(formatted_req, 201)
 
 # gene_symbol varchar(50) NOT NULL,
 # gene_synonyms varchar(255),
 # gene_description varchar(21000),
 # gpl varchar(10) NOT NULL,
 # ref_id varchar(255) NOT NULL,
-@app.route("/api/v1/gene_gpl_ref", methods=["POST"])
-def api_create_values():
+@app.route("/api/v1/gene_gpl_ref", methods = ["POST"])
+def api_create_gene_gpl_ref():
     # global engine
     # global gene_gpl_ref_insert
 
@@ -128,12 +222,10 @@ def api_create_values():
         with engine.begin() as con:
             con.execute(gene_gpl_ref_insert, **formatted_req)
     except exc.IntegrityError as e:
-        abort(400, "A conflict has occured with the provided values. Must have a unique gpl, gene_symbol combination.")
+        abort(400, "A conflict has occured with the provided values. Must have a unique gpl, ref_id combination.")
     except Exception as e:
         app.logger.error(e)
         abort(500)
-
-
     
 
     #abort(400)
