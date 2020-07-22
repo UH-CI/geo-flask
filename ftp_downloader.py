@@ -238,19 +238,14 @@ def get_gse_data_stream(gse, gpl, data_processor):
     
     resource_single = "%s%s" % (resource_dir, file_single)
     resource_multiple = "%s%s" % (resource_dir, file_multiple)
-
-    print(resource_multiple)
-    print(resource_single)
     
     files = get_ftp_files(resource_dir)
-    print(files)
     if resource_single in files:
         resource = resource_single
     elif resource_multiple in files:
         resource = resource_multiple
     else:
         raise Exception("Resource not found in dir %s" % resource_dir)
-    print(resource)
     get_data_stream_from_resource(resource, data_processor)
 
 #series are <gse>_series_matrix.txt.gz if only one platform associated
@@ -266,6 +261,8 @@ def retr_data(resource, stream, blocksize, term_flag):
     def data_cb(data):
         #check if should terminate
         if(term_flag.is_set()):
+            #try to abort file transfer
+            ftp.abort()
             #end data stream
             stream.end_of_data()
             #terminate thread
@@ -322,11 +319,11 @@ def get_data_stream_from_resource(resource, data_processor):
     #         temp = row
     #         print(row)
     #         # continue
-    start = time.time()
+    # start = time.time()
     data_processor(stream)
     term_flag.set()
-    end = time.time()
-    print(end - start)
+    # end = time.time()
+    # print(end - start)
 
     
 

@@ -2,7 +2,7 @@ import flask
 from flask import request, jsonify, abort
 import sqlite3
 import sys
-import sample_retrieval
+# import sample_retrieval
 import db_connect
 import atexit
 import signal
@@ -212,8 +212,6 @@ def api_filter_gse_values():
     gse = query_parameters.get("gse")
     gpl = query_parameters.get("gpl")
     id_refs = query_parameters.get("id_refs")
-    print("!!!")
-    print(id_refs)
 
     #trust that gpl and gse match, otherwise should catch issue when returning data
     #if no resource found when getting ftp data then note to check platform matches sample
@@ -231,7 +229,6 @@ def api_filter_gse_values():
     gpl_list = gpl.split(",")
     if id_refs is not None:
         id_refs = id_refs.split(",")
-        print(id_refs)
     #if only one platform provided expand that platform to all provided series
     if len(gpl_list) == 1:
         gpl_list = [gpl_list[0] for gse in gse_list]
@@ -269,101 +266,101 @@ def api_filter_gse_values():
 #       ...
 #   }
 # }
-@app.route("/api/v1/values", methods=["GET"])
-def api_filter_values():
-    try:
-        query_parameters = request.args
-        gene_symbol = query_parameters.get("symbol")
+# @app.route("/api/v1/values", methods=["GET"])
+# def api_filter_values():
+#     try:
+#         query_parameters = request.args
+#         gene_symbol = query_parameters.get("symbol")
 
-        #what can be searched on?
-        #gpl for reversing from disease, gene symbol (also gene synonyms)
-        #note gene synonym query must have wildcard at start so no index, so check main symbol first (always consistent since from same record), then check like first item in list (no initial wildcard), then use initial wildcard as last resort
-        #need to index symbol, synonyms, and gpl
+#         #what can be searched on?
+#         #gpl for reversing from disease, gene symbol (also gene synonyms)
+#         #note gene synonym query must have wildcard at start so no index, so check main symbol first (always consistent since from same record), then check like first item in list (no initial wildcard), then use initial wildcard as last resort
+#         #need to index symbol, synonyms, and gpl
 
-        #connection to gene_type db and query on gene type (get gpls and ids)
-        #should also check alternative gene names if nothing returned
-        #allow gene description query? Probably would want "LIKE" query
+#         #connection to gene_type db and query on gene type (get gpls and ids)
+#         #should also check alternative gene names if nothing returned
+#         #allow gene description query? Probably would want "LIKE" query
 
-        #remember to change table collation to case insensitive
+#         #remember to change table collation to case insensitive
 
-        #queries tiered by speed
-        gene_symbol_queries = [
-            (
-                text("SELECT * FROM gene_gpl_ref WHERE gene_symbol = :gene;"),
-                {"gene": gene_symbol}
-            ),
-            (
-                text("SELECT * FROM gene_gpl_ref WHERE gene_synonyms LIKE :gene;"),
-                {"gene": "%s%%" % gene_symbol}
-            ),
-            #last resort, wildcard at start of pattern
-            #can just use the find in set operator since can't use the index
-            (
-                text("SELECT * FROM gene_gpl_ref WHERE FIND_IN_SET(:gene, gene_synonyms);"),
-                {"gene": gene_symbol}
-            )
-        ]
+#         #queries tiered by speed
+#         gene_symbol_queries = [
+#             (
+#                 text("SELECT * FROM gene_gpl_ref WHERE gene_symbol = :gene;"),
+#                 {"gene": gene_symbol}
+#             ),
+#             (
+#                 text("SELECT * FROM gene_gpl_ref WHERE gene_synonyms LIKE :gene;"),
+#                 {"gene": "%s%%" % gene_symbol}
+#             ),
+#             #last resort, wildcard at start of pattern
+#             #can just use the find in set operator since can't use the index
+#             (
+#                 text("SELECT * FROM gene_gpl_ref WHERE FIND_IN_SET(:gene, gene_synonyms);"),
+#                 {"gene": gene_symbol}
+#             )
+#         ]
 
-        res = None
-        row = None
-        with engine.begin() as con:  
-            for query in gene_symbol_queries:
-                #return value should be similar to cursor results
-                res = con.execute(query[0], **query[1])
-                #fetch first result to check if anything returned
-                row = res.fetchone()
-                #got a result, all entries using the same gene should be consistent so good to go?
-                #use this for now but...
-                #not sure about this because of the inconsistency of orthologs (some had values in the synonyms col where they were the main symbol in others...)
-                #should eventually probably just enumerate gene synonyms to separate columns so can index (need index for any kind of speed over all > 2 billion rows that will eventually exist)
-                #also remember to refactor table structure, and should add in taxonomic id and something to get species
-                if row is not None:
-                    break
+#         res = None
+#         row = None
+#         with engine.begin() as con:  
+#             for query in gene_symbol_queries:
+#                 #return value should be similar to cursor results
+#                 res = con.execute(query[0], **query[1])
+#                 #fetch first result to check if anything returned
+#                 row = res.fetchone()
+#                 #got a result, all entries using the same gene should be consistent so good to go?
+#                 #use this for now but...
+#                 #not sure about this because of the inconsistency of orthologs (some had values in the synonyms col where they were the main symbol in others...)
+#                 #should eventually probably just enumerate gene synonyms to separate columns so can index (need index for any kind of speed over all > 2 billion rows that will eventually exist)
+#                 #also remember to refactor table structure, and should add in taxonomic id and something to get species
+#                 if row is not None:
+#                     break
 
-        if row is None:
-            return jsonify({})
+#         if row is None:
+#             return jsonify({})
 
-        #row order gene_symbol, gene_synonyms, gene_description, gpl, id_ref
+#         #row order gene_symbol, gene_synonyms, gene_description, gpl, id_ref
 
-        #gene info same for everything, would be better to have gene info table with gene_symbol as a foreign key
+#         #gene info same for everything, would be better to have gene info table with gene_symbol as a foreign key
 
-        ret = {
-            "gene_symbol": row[0],
-            "gene_synonyms": row[1],
-            "gene_description": row[2],
-            "platforms": {}
-        }
+#         ret = {
+#             "gene_symbol": row[0],
+#             "gene_synonyms": row[1],
+#             "gene_description": row[2],
+#             "platforms": {}
+#         }
 
 
-        count = 0
-        while row is not None:
-            print(row)
-            count += 1
-            row = res.fetchone()
-            continue
-            gpl = row[3]
-            id_ref = row[4]
+#         count = 0
+#         while row is not None:
+#             print(row)
+#             count += 1
+#             row = res.fetchone()
+#             continue
+#             gpl = row[3]
+#             id_ref = row[4]
 
-            gsms = sample_retrieval.get_samples_from_platform(gpl)
-            ret["platforms"][gpl] = {}
-            for gsm in gsms:
-                values = sample_retrieval.get_value_from_sample_by_id(gsm, id_ref)
-                ret["platforms"][gpl][gsm] = values
+#             gsms = sample_retrieval.get_samples_from_platform(gpl)
+#             ret["platforms"][gpl] = {}
+#             for gsm in gsms:
+#                 values = sample_retrieval.get_value_from_sample_by_id(gsm, id_ref)
+#                 ret["platforms"][gpl][gsm] = values
             
-            row = res.fetchone()
+#             row = res.fetchone()
 
-        print(count)
+#         print(count)
 
-        return jsonify(ret)
-    except Exception as e:
-        app.logger.error(e)
-        abort(500)
-
-
+#         return jsonify(ret)
+#     except Exception as e:
+#         app.logger.error(e)
+#         abort(500)
 
 
 
-#finish this
+
+
+#proably going to bypass this
 @app.route("/api/v1/gene_info", methods = ["POST"])
 def api_create_gene_info():
     try:
