@@ -204,48 +204,50 @@ def api_filter_gse_gpl():
 
 @app.route("/api/v1/values/gse_values", methods=["GET"])
 def api_filter_gse_values():
-    
-    #need gse, gpl, and id_refs
-    #if id refs none then just return all data
-    query_parameters = request.args
-
-    gse = query_parameters.get("gse")
-    gpl = query_parameters.get("gpl")
-    id_refs = query_parameters.get("id_refs")
-
-    #trust that gpl and gse match, otherwise should catch issue when returning data
-    #if no resource found when getting ftp data then note to check platform matches sample
-
-    #must provide series and platforms
-    if gse is None or gpl is None:
-        abort(400, "Need gse and gpl.")
-
-    #capitalize the accessions since they should be anyway
-    gse = gse.upper()
-    gpl = gpl.upper()
-
-    #break into lists to allow multiples
-    gse_list = gse.split(",")
-    gpl_list = gpl.split(",")
-    if id_refs is not None:
-        id_refs = id_refs.split(",")
-    #if only one platform provided expand that platform to all provided series
-    if len(gpl_list) == 1:
-        gpl_list = [gpl_list[0] for gse in gse_list]
-    #must provide gpls for each series provided or one gpl for all of them
-    if len(gse_list) != len(gpl_list):
-        abort(400, "gse and gpl lists must match length.")
-
-    #create pairs out of items
-    gse_gpl_pairs = list(zip(gse_list, gpl_list))
-
-    data = {}
-    for pair in gse_gpl_pairs:
-        data[pair[0]] = ftp_handler.get_gse_data(*pair, id_refs)
-
-    return jsonify(data)
     try:
-        pass
+        #need gse, gpl, and id_refs
+        #if id refs none then just return all data
+        query_parameters = request.args
+
+        gse = query_parameters.get("gse")
+        gpl = query_parameters.get("gpl")
+        id_refs = query_parameters.get("id_refs")
+
+        #trust that gpl and gse match, otherwise should catch issue when returning data
+        #if no resource found when getting ftp data then note to check platform matches sample
+
+        #must provide series and platforms
+        if gse is None or gpl is None:
+            abort(400, "Need gse and gpl.")
+
+        #capitalize the accessions since they should be anyway
+        gse = gse.upper()
+        gpl = gpl.upper()
+
+        #break into lists to allow multiples
+        gse_list = gse.split(",")
+        gpl_list = gpl.split(",")
+        if id_refs is not None:
+            id_refs = id_refs.split(",")
+        #if only one platform provided expand that platform to all provided series
+        if len(gpl_list) == 1:
+            gpl_list = [gpl_list[0] for gse in gse_list]
+        #must provide gpls for each series provided or one gpl for all of them
+        if len(gse_list) != len(gpl_list):
+            abort(400, "gse and gpl lists must match length.")
+
+        #create pairs out of items
+        gse_gpl_pairs = list(zip(gse_list, gpl_list))
+
+        data = {}
+        for pair in gse_gpl_pairs:
+            try:
+                data[pair[0]] = ftp_handler.get_gse_data(*pair, id_refs)
+            except ValueError as e:
+                abort(400, str(e))
+            #runtime error would be 500 error so can just let it be thrown, will go to main exception
+
+        return jsonify(data)
     except Exception as e:
         app.logger.error(e)
         abort(500)

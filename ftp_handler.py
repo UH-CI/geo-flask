@@ -4,6 +4,8 @@ import gzip
 import sqlite3
 import ftp_downloader
 import math
+import ftplib
+import ftp_manager
 
 # file = "./cache/GPL5.txt"
 
@@ -20,9 +22,13 @@ import math
 
 
 
+#retry times if something wrong with ftp connection
+RETRY = 5
+
 dbf = "E:/ncbigeo/GEOmetadb.sqlite"
 
-
+ftp_base = "ftp.ncbi.nlm.nih.gov"
+manager = ftp_manager.FTPManager(ftp_base)
 
 
 def parse_data_table_gz(file, table_start, table_end, row_processor):
@@ -51,9 +57,8 @@ def parse_data_table_gz(file, table_start, table_end, row_processor):
 
 
 #id_refs might be none, handle that
-def row_handler(data_bank, id_refs):
+def gse_row_handler(data_bank, id_refs):
     id_ref_index = None
-    print(id_refs)
     #make a deep copy of id_refs so dont destroy the integrity of the original list
     id_refs_c = [ref for ref in id_refs]
 
@@ -61,7 +66,6 @@ def row_handler(data_bank, id_refs):
         nonlocal id_ref_index
         #only need to get the index once
         if id_ref_index is None:
-            print(header)
             #should throw error if not found, should always be found
             id_ref_index = header.index("ID_REF")
         if row[id_ref_index] in id_refs_c:
@@ -107,13 +111,32 @@ def get_gses_from_gpl(gpl):
 
 def data_processor(data_bank, id_refs):
     def _data_processor(file):
-        parse_data_table_gz(file, "!series_matrix_table_begin", "!series_matrix_table_end", row_handler(data_bank, id_refs))
+        parse_data_table_gz(file, "!series_matrix_table_begin", "!series_matrix_table_end", gse_row_handler(data_bank, id_refs))
     return _data_processor
 
 
-def get_gse_data(gse, gpl, id_refs):
+def get_gse_data(gse, gpl, id_refs, attempt = 0):
+    ftp_con = manager.get_con()
+    ftp = ftp_con.ftp
+    problem = False
     data = {}
-    ftp_downloader.get_gse_data_stream(gse, gpl, data_processor(data, id_refs))
+    try:
+        ftp_downloader.get_gse_data_stream(ftp, gse, gpl, data_processor(data, id_refs))
+    except ftplib.all_errors as e:
+        print(e)
+        problem = True
+    except Exception as e:
+        manager.release_con(ftp_con, problem)
+        #this is a 400 error, the issue is with the user supplied resource info (or some edge case in NCBI, but let's pretend that won't happen)
+        raise ValueError(e)
+    manager.release_con(ftp_con, problem)
+    #check if there was a problem and if need to retry with a new connection
+    if problem:
+        if attempt < RETRY:
+            data = get_gse_data(gse, gpl, id_refs, attempt + 1)
+        else:
+            #this should be a 500 error
+            raise RuntimeError("A connection error has occured. Could not get FTP data")
     return data
 
 # data = {}

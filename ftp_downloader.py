@@ -151,7 +151,7 @@ class CircularRWBuffer():
 
 
 
-ftp_base = "ftp.ncbi.nlm.nih.gov"
+
 
 type_details = {
     "platform": {
@@ -169,18 +169,14 @@ type_details = {
 }
 
 
-ftp = ftplib.FTP(ftp_base)
-ftp.login()
+# ftp = ftplib.FTP(ftp_base)
+# ftp.login()
 
 
-def get_ftp_files(dir):
-    #return empty list if exception thrown
-    files = []
-    try:
-        files = ftp.nlst(dir)
-    except Exception as e:
-        raise e
-        pass
+
+def get_ftp_files(ftp, dir):
+    #may throw an error if something wrong with connection, catch in ftp handler
+    files = ftp.nlst(dir)
     return files
     
 def get_resource_dir(accession, resource_details):
@@ -200,7 +196,7 @@ def get_resource_dir(accession, resource_details):
     return resource_dir
 
 
-def get_gpl_data_stream(gpl, data_processor):
+def get_gpl_data_stream(ftp, gpl, data_processor):
     resource_details = {
         "acc_prefix": "GPL",
         "resource_base": "/geo/platforms/",
@@ -212,16 +208,16 @@ def get_gpl_data_stream(gpl, data_processor):
 
     resource_dir = get_resource_dir(gpl, resource_details)
     #verify resource exists and thow exception if it doesn't
-    files = get_ftp_files(resource_dir)
+    files = get_ftp_files(ftp, resource_dir)
     if fname not in files:
-        raise Exception("Resource not found")
+        raise Exception("Resource not found in dir %s" % resource_dir)
     
     resource = "%s%s" % (resource_dir, fname)
 
-    get_data_stream_from_resource(resource, data_processor)
+    get_data_stream_from_resource(ftp, resource, data_processor)
 
 
-def get_gse_data_stream(gse, gpl, data_processor):
+def get_gse_data_stream(ftp, gse, gpl, data_processor):
     resource_details = {
         "acc_prefix": "GSE",
         "resource_base": "/geo/series/",
@@ -239,14 +235,14 @@ def get_gse_data_stream(gse, gpl, data_processor):
     resource_single = "%s%s" % (resource_dir, file_single)
     resource_multiple = "%s%s" % (resource_dir, file_multiple)
     
-    files = get_ftp_files(resource_dir)
+    files = get_ftp_files(ftp, resource_dir)
     if resource_single in files:
         resource = resource_single
     elif resource_multiple in files:
         resource = resource_multiple
     else:
         raise Exception("Resource not found in dir %s" % resource_dir)
-    get_data_stream_from_resource(resource, data_processor)
+    get_data_stream_from_resource(ftp, resource, data_processor)
 
 #series are <gse>_series_matrix.txt.gz if only one platform associated
 #otherwise <gse>-<gpl>_series_matrix.txt.gz
@@ -257,7 +253,7 @@ def get_gse_data_stream(gse, gpl, data_processor):
 
 
 
-def retr_data(resource, stream, blocksize, term_flag):
+def retr_data(ftp, resource, stream, blocksize, term_flag):
     def data_cb(data):
         #check if should terminate
         if(term_flag.is_set()):
@@ -273,138 +269,72 @@ def retr_data(resource, stream, blocksize, term_flag):
     stream.end_of_data()
 
 
-def get_data_stream_from_resource(resource, data_processor):
-
-    # uri = "%s%s" % (ftp_base, resource)
-
-    # size = ftp.size(resource)
-    # print(size)
-    # print(resource)
-
-    # stream = io.BytesIO()
-
-    # dc = zlib.decompressobj()
-
-    
-    # raw = io.BytesIO()
-    
-    # writer = raw
-    # reader = io.BytesIO(writer.getbuffer())
+def get_data_stream_from_resource(ftp, resource, data_processor):
 
     #256KB starting buffer
     stream = CircularRWBuffer(262144)
-    # stream = io.BytesIO()
-
-
-    # def decompress_and_stream(chunk):
-    #     decompressed = dc.decompress(chunk)
-    #     stream.write(decompressed)
-
-    #perform in thread since network io
-    
-    # ftp.retrbinary("RETR %s" % resource, stream.write, blocksize = 4096)
 
     term_flag = threading.Event()
     
     #daemon thread stops extra data after table from tying up process
     #better way to do this? do we need resource cleanup?
-    t = threading.Thread(target = retr_data, args = (resource, stream, 4096, term_flag), daemon = True)
+    t = threading.Thread(target = retr_data, args = (ftp, resource, stream, 4096, term_flag), daemon = True)
     t.start()
 
-    # retr_data(resource, stream, 4096)
 
-
-    # with gzip.open(stream, mode='rt') as f:
-    #     for row in csv.reader(f, delimiter = "\t"):
-    #         temp = row
-    #         print(row)
-    #         # continue
-    # start = time.time()
     data_processor(stream)
     term_flag.set()
-    # end = time.time()
-    # print(end - start)
 
-    
-
-    #might have data after finished reading table, should end process and add some sort of stream cleanup
-    
-
-    # for chunk in stream:
-    #     print(chunk)
-
-    # reader = io.BufferedReader(stream)
-    # print(reader.read(100))
-
-    
-    
-
-    # gz = gzip.GzipFile(fileobj = reader, mode = "rb")
-    # for line in gz:
-    #     print(line)
-
-    
-    # stream.seek(0)
-    # writer.tell()
-    #gz = gzip.GzipFile(fileobj = stream, mode = "rb")
-    
-
-    # stream.seek(0)
-    
-    # gz = gzip.GzipFile(fileobj = stream, mode = "rb")
-    # stream.seek(0)
-    # for line in gz:
-    #     print(line)
         
-def comp_test(accession):
-    start = time.time()
-    gpl_data = GEOparse.get_GEO(geo = accession, destdir = "./cache", silent = True)
-    table = gpl_data.table
-    for line in table:
-        #just for minimal processing overhead so not optimized away (can python even do that?), should never trigger
-        if(len(line) == 10000000000):
-            print("loooooong")
-    end = time.time()
-    print(end - start)
+# def comp_test(accession):
+#     start = time.time()
+#     gpl_data = GEOparse.get_GEO(geo = accession, destdir = "./cache", silent = True)
+#     table = gpl_data.table
+#     for line in table:
+#         #just for minimal processing overhead so not optimized away (can python even do that?), should never trigger
+#         if(len(line) == 10000000000):
+#             print("loooooong")
+#     end = time.time()
+#     print(end - start)
     
-def test_driver():
-    s = b"the quick brown fox jumps over the lazy dog"
+# def test_driver():
+#     s = b"the quick brown fox jumps over the lazy dog"
 
-    stream = CircularRWBuffer(10)
+#     stream = CircularRWBuffer(10)
 
-    stream.write(s[0:30])
-    # stream.write(s[10:20])
-    print(stream.read(2))
-    print(stream.read())
-    # stream.write(s[20:30])
-    #deadlock if block true and no timeout
-    print(stream.read(500, True, 10))
-    stream.write(s[30:])
-    stream.end_of_data()
-    print(stream.read(500))
+#     stream.write(s[0:30])
+#     # stream.write(s[10:20])
+#     print(stream.read(2))
+#     print(stream.read())
+#     # stream.write(s[20:30])
+#     #deadlock if block true and no timeout
+#     print(stream.read(500, True, 10))
+#     stream.write(s[30:])
+#     stream.end_of_data()
+#     print(stream.read(500))
     
-    # print(stream.read(100))
-    # stream.write(s[0:4])
-    # print(stream.read())
-    # stream.write(s[4:10])
-    # stream.write(s[10:12])
-    # print(stream.read(2))
-    # stream.write(s[12:15])
-    # print(stream.read(2))
-    # stream.write(s[15:])
-    # print(stream.read())
-    # stream.write(s[0:7])
-    # print(stream.read())
-    # stream.write(s[7:15])
-    # stream.write(s[15:])
-    # print(stream.read())
+#     # print(stream.read(100))
+#     # stream.write(s[0:4])
+#     # print(stream.read())
+#     # stream.write(s[4:10])
+#     # stream.write(s[10:12])
+#     # print(stream.read(2))
+#     # stream.write(s[12:15])
+#     # print(stream.read(2))
+#     # stream.write(s[15:])
+#     # print(stream.read())
+#     # stream.write(s[0:7])
+#     # print(stream.read())
+#     # stream.write(s[7:15])
+#     # stream.write(s[15:])
+#     # print(stream.read())
 
 
 
-#test_driver()
-# acc = "GPL5275"
-# process_acc(acc, "platform")
-# comp_test(acc)
+# #test_driver()
+# # acc = "GPL5275"
+# # process_acc(acc, "platform")
+# # comp_test(acc)
 
 
 

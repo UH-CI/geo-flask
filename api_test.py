@@ -26,6 +26,7 @@ for gpl in gpls:
 
         res = requests.get(q3)
         print(res.json())
+        # break
 
-    break
+    # break
 
