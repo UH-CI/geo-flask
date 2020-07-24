@@ -25,8 +25,6 @@ import ftp_manager
 #retry times if something wrong with ftp connection
 RETRY = 5
 
-dbf = "E:/ncbigeo/GEOmetadb.sqlite"
-
 ftp_base = "ftp.ncbi.nlm.nih.gov"
 manager = ftp_manager.FTPManager(ftp_base)
 

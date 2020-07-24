@@ -141,7 +141,10 @@ def api_get_gene_info():
             
             row = res.fetchone()
 
-        return jsonify(ret)
+        response = jsonify(ret)
+        #FOR DEBUGGING, PROBABLY NEED TO REMOVE THIS
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        return response
     except Exception as e:
         app.logger.error(e)
         abort(500)
@@ -167,8 +170,12 @@ def api_filter_gpl_gse():
         con.row_factory = filter_single_factory
         cur = con.cursor()
         cur.execute(query, [gpl])
-        gsms = cur.fetchall()
-        return jsonify(gsms)
+        gses = cur.fetchall()
+
+        response = jsonify(gses)
+        #FOR DEBUGGING, PROBABLY NEED TO REMOVE THIS
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        return response
     except Exception as e:
         app.logger.error(e)
         abort(500)
@@ -194,7 +201,11 @@ def api_filter_gse_gpl():
         cur = con.cursor()
         cur.execute(query, gse)
         gpls = cur.fetchall()
-        return gpls
+
+        response = jsonify(gpls)
+        #FOR DEBUGGING, PROBABLY NEED TO REMOVE THIS
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        return response
     except Exception as e:
         app.logger.error(e)
         abort(500)
@@ -247,7 +258,10 @@ def api_filter_gse_values():
                 abort(400, str(e))
             #runtime error would be 500 error so can just let it be thrown, will go to main exception
 
-        return jsonify(data)
+        response = jsonify(data)
+        #FOR DEBUGGING, PROBABLY NEED TO REMOVE THIS
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        return response
     except Exception as e:
         app.logger.error(e)
         abort(500)
