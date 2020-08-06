@@ -207,8 +207,13 @@ def get_gpl_data_stream(ftp, gpl, data_processor):
     fname = "%s%s" % (gpl, file_suffix)
 
     resource_dir = get_resource_dir(gpl, resource_details)
+    files = None
     #verify resource exists and thow exception if it doesn't
-    files = get_ftp_files(ftp, resource_dir)
+    try:
+        files = get_ftp_files(ftp, resource_dir)
+    #if permanent error response should be resource not found
+    except ftplib.error_perm:
+        raise Exception("Resource dir not found %s" % resource_dir)
     if fname not in files:
         raise Exception("Resource not found in dir %s" % resource_dir)
     
@@ -234,8 +239,12 @@ def get_gse_data_stream(ftp, gse, gpl, data_processor):
     
     resource_single = "%s%s" % (resource_dir, file_single)
     resource_multiple = "%s%s" % (resource_dir, file_multiple)
-    
-    files = get_ftp_files(ftp, resource_dir)
+    files = None
+    try:
+        files = get_ftp_files(ftp, resource_dir)
+    #if permanent error response should be resource not found
+    except ftplib.error_perm:
+        raise Exception("Resource dir not found %s" % resource_dir)
     if resource_single in files:
         resource = resource_single
     elif resource_multiple in files:

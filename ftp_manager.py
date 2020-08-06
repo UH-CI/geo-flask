@@ -340,14 +340,14 @@ class FTPManager:
 
         #check if idle connections exceeds prune buffer and make sure not to prune past minimum number of connections
         if len(self.connections) - self.in_use > self.prune_buffer and len(self.connections) > self.min_cons:
-            self.prune_connection()
+            self.prune_connection(con)
             pruned = True
 
         return pruned
 
 
     def prune_connection(self, con):
-        con.dipose()
+        con.dispose()
         self.connections.remove(con)
 
 
