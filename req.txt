@@ -16,7 +16,7 @@ configparser==4.0.2
 cryptography==2.9.2
 cycler==0.10.0
 emoji==0.4.5
-Flask==1.1.2
+Flask==2.3.2
 future==0.18.2
 GEOparse==2.0.1
 idna==2.8
